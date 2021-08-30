@@ -1,0 +1,26 @@
+{
+  "name": "countdown",
+  "scripts": {
+    "build-report": "npx shadow-cljs run shadow.cljs.build-report app target/build-report.html",
+    "sass:watch": "sass src/css/styles.scss target/css/styles.css --watch",
+    "postcss:watch": "npx tailwindcss -i ./target/css/styles.css -o resources/public/css/styles.css --watch",
+    "postcss:release": "cross-env NODE_ENV=production postcss target/css/styles.css -o ./resources/public/css/styles.css --verbose",
+    "shadow:watch": "shadow-cljs watch app",
+    "shadow:release": "shadow-cljs release app",
+    "dev": "run-p -l *:watch",
+    "release": "run-s *:release"
+  },
+  "dependencies": {
+    "react": "17.0.2",
+    "react-dom": "17.0.2"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.3.3",
+    "cross-env": "^7.0.3",
+    "npm-run-all": "^4.1.5",
+    "postcss": "^8.3.6",
+    "sass": "^1.38.2",
+    "shadow-cljs": "2.15.2",
+    "tailwindcss": "^2.2.9"
+  }
+}

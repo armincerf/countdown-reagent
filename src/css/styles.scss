@@ -1,0 +1,184 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+    --boardBackground: rgb(74, 115, 169);
+    --tileBackground: rgb(36, 70, 138);
+    --tileBorder: rgb(200, 211, 222);
+}
+
+body {
+    background: #daeeff;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.answer {
+    font-family: monospace;
+    white-space: pre;
+    font-size: 2em;
+}
+
+#switches,
+#clock {
+    padding-top: 30px;
+    padding-bottom: 10px;
+}
+
+.screen {
+    border: 2px solid var(--boardBackground);
+    margin: 10px 0;
+    background: radial-gradient(#fcffd1, #a3d5ff);
+}
+
+canvas {
+    width: 250px;
+    height: 250px;
+}
+
+#digitalclock {
+    border: solid 2px black;
+    font-family: monospace;
+    color: black;
+    background: #ccc;
+    width: 3em;
+    margin: auto;
+    margin-bottom: 10px;
+}
+
+.btn {
+  @apply disabled:bg-white relative inline-flex items-center px-4 py-2 border rounded-md m-1 border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+.btnSuccess {
+  composes: btn;
+  @apply disabled:bg-green-500 text-white bg-green-500 hover:bg-green-400 focus:ring-2 focus:ring-offset-2 focus:ring-green-500;
+}
+.btnDanger {
+  composes: btn;
+  @apply disabled:bg-red-500 text-white bg-red-500 hover:bg-red-400 focus:ring-2 focus:ring-offset-2 focus:ring-red-500;
+}
+.btnPrimary {
+  composes: btn;
+  @apply disabled:bg-blue-400 text-white bg-blue-500 hover:bg-blue-400 focus:ring-2 focus:ring-offset-2 focus:ring-blue-500;
+}
+
+.groupedBtn {
+  composes: btn;
+  @apply -ml-px rounded-none mx-0;
+}
+.groupedBtnL {
+  composes: groupedBtn;
+  @apply rounded-l-md;
+}
+.groupedBtnR {
+  composes: groupedBtn;
+  composes: btnPrimary;
+  @apply rounded-r-md;
+}
+.input {
+  composes: btn;
+}
+
+.tile,
+.front,
+.back {
+    width: 1.2em;
+    height: 1.2em;
+  font-weight: bold;
+  color: white;
+  text-align: center;
+  line-height: 1.1em;
+  font-size: 30px;
+  .front {
+    background-color: var(--boardBackground);
+  }
+  .back {
+    transform: rotateY(180deg);
+    background-color: var(--tileBackground);
+  }
+}
+
+.board {
+    border: 3px solid var(--boardBackground);
+    display: inline-block;
+    font-size: 30px;
+}
+
+.number {
+  .tile,
+  .front,
+  .back {
+    width: 2em;
+    height: 2em;
+    font-size: 18px;
+    line-height: 2em;
+  }
+}
+
+@media only screen and (max-width: 400px) {
+  .tile {
+    font-size: 25px;
+  }
+}
+
+.tileBorder {
+  border: 3px solid var(--tileBorder);
+  background-color: var(--boardBackground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#numbers-target {
+  padding: 1px 5px;
+  background-color: #333;
+  color: rgb(227, 248, 127);
+  font-family: monospace;
+  text-align: center;
+  height: 1.2em;
+  line-height: 1.1em;
+  margin: 1px;
+}
+
+#number-target-box {
+  display: inline-block;
+  border: 3px solid rgb(20, 22, 95);
+  margin-bottom: 5px;
+}
+
+/* entire container, keeps perspective */
+.tiles {
+  perspective: 1000px;
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+}
+
+.tile.hover .flipper {
+  transform-origin: center;
+  transform: rotateY(180deg);
+}
+
+/* flip speed goes here */
+.flipper {
+  transition: 0.6s;
+  transform-style: preserve-3d;
+  width: 1.2em;
+  height: 1.2em;
+  position: relative;
+}
+
+.front,
+.back {
+  backface-visibility: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.tile:not(:last-child) {
+  .front, .back {
+    border-right: solid 3px var(--tileBorder);
+  }
+}
