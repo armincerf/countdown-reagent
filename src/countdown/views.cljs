@@ -5,6 +5,7 @@
    [countdown.events :as events]
    [countdown.routes :as routes]
    [countdown.subs :as subs]
+   [countdown.db :as db]
    ["/js/helpers" :refer [drawClock]]
    [clojure.string :as str]))
 
@@ -13,35 +14,25 @@
     [(.-width bb) (.-height bb)]))
 
 (defn canvas [{:keys [width height draw-once]}]
-  (let [state (atom {:size [250 250]})]
-    (r/create-class
-     {:reagent-render
-      (fn []
-        (let [update-size (fn [el timer-left]
-                            (when el
-                              (let [size (get-real-size el)
-                                    ctx  (.getContext el "2d")]
-                                (swap! state assoc :size size)
-                                (drawClock ctx timer-left))))]
+  (rf/dispatch [::events/reset-clock])
+  (fn []
+    (let [update-size (fn [el timer-left]
+                        (when el
+                          (let [ctx (.getContext el "2d")]
+                            (drawClock ctx timer-left))))]
 
-          (fn [] (let [{:keys [size]} @state
-                       timer-left @(rf/subscribe [::subs/timer-left])
-                       [w h] size]
-                   [:canvas {:ref    #(update-size % timer-left)
-                             :id "canvas"
-                             :width w
-                             :height h}]))))
-      :component-did-mount (fn [] (reset! state {:size nil}))})))
+      (fn [] (let [timer-left     @(rf/subscribe [::subs/timer-left])]
+               [:canvas {:ref    #(update-size % timer-left)
+                         :id     "canvas"
+                         :width  width
+                         :height height}])))))
 
 (defn clock
   []
-  (let [running?   @(rf/subscribe [::subs/running?])
-        can-start? @(rf/subscribe [::subs/can-start?])]
-    [:div {:class "flex justify-center"}
-     [canvas
-      {:draw-once (and (not running?) can-start?)
-       :width     "250px"
-       :height    "250px"}]]))
+  [:div {:class "flex justify-center"}
+   [canvas
+    {:width  "250px"
+     :height "250px"}]])
 
 (defn timer
   []
@@ -53,34 +44,82 @@
 
 (defn tiles
   []
-  (let [letters @(rf/subscribe [::subs/letters])]
+  (let [letters @(rf/subscribe [::subs/board])
+        letters-count @(rf/subscribe [::subs/letters-count])
+        render-letter (fn [idx letter]
+                        [:div.letter
+                         {:class (str (when (seq letter) "hover") " tile")
+                          :key idx}
+                         [:div.flipper
+                          [:div.front]
+                          (when (>= (count letters) idx)
+                            [:div.back letter])]])]
     [:div.board
      [:div.tiles
       [:div.tileBorder
-       (for [letter letters]
-         [:div.letter
-          {:key letter}
-          [:div.flipper
-           [:div.front]
-           [:div.back
-            letter]]])]]]))
+       (map-indexed render-letter
+                    (if (seq letters)
+                      letters
+                      (repeat letters-count "")))]]]))
 
 (defn board
   []
   [:div
    {:class
-    "flex flex-col items-center border-blue-800 p-8 border-2 bg-gradient-radial from-yellow-100 to-blue-300"}
+    " flex flex-col items-center border-blue-800 p-8 border-2 bg-gradient-radial from-yellow-100 to-blue-300"}
    [clock]
    [timer]
    [tiles]])
 
 (defn controls
   []
-  (let [running? @(rf/subscribe [::subs/running?])]
-    [:div
-     [:button.btn.btnPrimary
-      {:on-click #(rf/dispatch [::events/start-clock 30])}
-      "Start"]]))
+  (let [running? @(rf/subscribe [::subs/running?])
+        time-left @(rf/subscribe [::subs/timer-left])
+        board-count @(rf/subscribe [::subs/board-count])
+        letters-count @(rf/subscribe [::subs/letters-count])
+        reached-vowel-limit? @(rf/subscribe [::subs/vowel-limit?])
+        reached-consonant-limit? @(rf/subscribe [::subs/consonant-limit?])
+        board-full? (>= board-count letters-count)]
+    [:<>
+     [:div.letter-buttons
+      [:div.flex-1
+       [:div.inline-flex
+        [:span
+         {:class "relative z-0 inline-flex rounded-md"}
+         (for [type ["Vowel" "Consonant"]
+               :let [vowel? (= type "Vowel")
+                     disabled (or board-full?
+                                  (if vowel?
+                                    reached-vowel-limit?
+                                    reached-consonant-limit?))]]
+           [:button
+            {:disabled disabled
+             :key      type
+             :class    (if vowel? "groupedBtnL" "groupedBtn")
+             :on-click #(rf/dispatch [::events/add-letter vowel?])}
+            type])
+         [:button
+          {:class "groupedBtnR"
+           :disabled board-full?
+           :on-click #(rf/dispatch [::events/random-fill-letters])}
+          "Random Fill"]]]]]
+     [:div.timer-buttons
+      (when (pos? board-count)
+        [:button.btn.btnPrimary
+         {:on-click #(rf/dispatch [::events/reset-all])}
+         "Reset"])
+      (when (and board-full? (= 30 time-left))
+        [:button.btn.btnPrimary
+         {:on-click #(rf/dispatch [::events/start-clock 30])}
+         "Start"])
+      (when (< time-left 30)
+        (if running?
+          [:button.btn
+           {:on-click #(rf/dispatch [::events/pause-clock])}
+           "Pause"]
+          [:button.btn
+           {:on-click #(rf/dispatch [::events/start-clock])}
+           "Resume"]))]]))
 
 (defn home-panel []
   [:div
