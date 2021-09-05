@@ -5,9 +5,7 @@
    [countdown.events :as events]
    [countdown.routes :as routes]
    [countdown.views :as views]
-   [countdown.config :as config]
-   ))
-
+   [countdown.config :as config]))
 
 (defn dev-setup []
   (when config/debug?

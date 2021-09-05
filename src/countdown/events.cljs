@@ -1,7 +1,11 @@
 (ns countdown.events
   (:require
+   [clojure.set :as set]
    [re-frame.core :as rf]
-   [countdown.db :as db]))
+   [superstructor.re-frame.fetch-fx]
+   [clojure.edn :as edn]
+   [countdown.db :as db]
+   [clojure.string :as str]))
 
 (rf/reg-event-db
  ::initialize-db
@@ -19,13 +23,40 @@
    {:db (assoc db :active-panel active-panel)}))
 
 (rf/reg-event-fx
+ ::time-up
+ (fn [{:keys [db]} _]
+   {:fx [[:dispatch [::fetch-dictionary]]]
+    :db (assoc db :time-up? true)}))
+
+(rf/reg-event-fx
  ::update-clock
  (fn [{:keys [db]} _]
    (let [time (:time-left db)]
-     (prn "update")
      (if (pos? time)
        {:db (assoc db :time-left (- time 0.1))}
-       {:fx [[:dispatch [::reset-clock]]]}))))
+       {:fx [[:dispatch [::time-up]]]}))))
+
+(rf/reg-event-fx
+ ::fetch-dictionary-success
+ (fn [{:keys [db]} [_ response]]
+   {:db (assoc db :dictionary
+               (edn/read-string (:body response)))}))
+
+(rf/reg-event-fx
+ ::http-fail
+ (fn [_ [_ res]]
+   (prn res)))
+
+(rf/reg-event-fx
+ ::fetch-dictionary
+ (fn [{:keys [db]} _]
+   (when-not (:dictionary db)
+     {:fetch {:method :get
+              :url "/dictionary.edn"
+              :cache :force-cache
+              :headers {"Accept" "application/edn"}
+              :on-success [::fetch-dictionary-success]
+              :on-failure [::http-fail]}})))
 
 (rf/reg-event-fx
  ::start-clock
@@ -46,24 +77,26 @@
  ::reset-all
  (fn [{:keys [db]} _]
    {:fx [[:dispatch [::reset-clock]]]
-    :db (assoc db :board [])}))
+    :db (dissoc db
+                :board
+                :check-word-results)}))
 
 (rf/reg-event-fx
  ::reset-clock
  (fn [{:keys [db]} _]
-   (def db db)
    {:fx [[:clear-interval (:interval db)]]
-    :db (-> db
-            (dissoc :interval)
-            (dissoc :time-left))}))
+    :db (dissoc db
+                :time-up?
+                :interval
+                :time-left)}))
 
 (rf/reg-event-fx
  ::add-letter
  (fn [{:keys [db]} [_ vowel?]]
    (let [{:keys [vowels consonants board letters-count]} db
-         shuffled-letters            (shuffle (if vowel? vowels consonants))
-         chosen-letter               (first shuffled-letters)
-         remaining-letters           (pop shuffled-letters)
+         shuffled-letters (shuffle (if vowel? vowels consonants))
+         chosen-letter (first shuffled-letters)
+         remaining-letters (pop shuffled-letters)
          board (remove empty? board)
          board-count (count board)
          missing-tiles (if (< board-count letters-count)
@@ -79,15 +112,70 @@
    (let [board (:board db)]
      (when (or (nil? board) (< (count (remove empty? board)) 9))
        {:fx [[:dispatch [::add-letter (rand-nth [true false])]]
-             [:dispatch-later {:ms       100
+             [:dispatch-later {:ms 100
                                :dispatch [::random-fill-letters]}]]}))))
 
 (comment
-  (rf/dispatch [::start-clock 30])
+  (rf/dispatch [::start-clock db/game-time])
   (rf/dispatch [::reset-clock]))
 
 (rf/reg-fx
  :clear-interval
  (fn [interval]
-   (def interval interval)
    (js/clearInterval interval)))
+
+(defn- word->key
+  [word]
+  (conj (vec (sort word)) :words))
+
+(defn trie-anagrams
+  [dictionary word]
+  (get-in dictionary (word->key word) #{}))
+
+(defn- power-set [word]
+  (let [add-char-seqs #(set/union %1 (set (map (partial str %2) %1)))]
+    (reduce add-char-seqs #{""} word)))
+
+(defn word->sub-anagrams
+  [dictionary word]
+  (->> word
+       str/lower-case
+       power-set
+       (map #(trie-anagrams dictionary %))
+       (apply set/union)
+       (sort #(> (count %1) (count %2)))
+       (take 10)))
+
+(defn sufficient-letters?
+  [board word]
+  (let [board-freqs (frequencies board)
+        word-freqs (frequencies word)]
+    (every? #(>= (get board-freqs %)
+               (get word-freqs %))
+          word)))
+
+(rf/reg-event-db
+ ::lookup-word
+ (fn [db [_ word]]
+   (let [results (trie-anagrams (:dictionary db) word)
+         in-dictionary? (results word)
+         sufficient-letters? (sufficient-letters?
+                              (str/lower-case
+                               (str/join (:board db))) word)]
+     (assoc db
+            :check-word-results (cond
+                                  (not sufficient-letters?)
+                                  :bad-letters
+                                  (not in-dictionary?)
+                                  :bad-word
+                                  :else
+                                  :valid)
+            :word word))))
+
+(rf/reg-event-db
+ ::find-answers
+ (fn [db _]
+   (let [results (word->sub-anagrams
+                  (:dictionary db)
+                  (str/join (:board db)))]
+     (assoc db :answers results))))

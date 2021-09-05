@@ -17,7 +17,7 @@
 (rf/reg-sub
  ::timer-left
  (fn [db _]
-   (or (:time-left db) 30)))
+   (or (:time-left db) db/game-time)))
 
 (rf/reg-sub
  ::running?
@@ -84,3 +84,26 @@
  ::numbers-count
  (fn [db _]
    (:numbers-count db)))
+
+(rf/reg-sub
+ ::check-word-result
+ (fn [db _]
+   (when-let [word (:word db)]
+     (case (:check-word-results db)
+       :valid
+       (str "Nice one! " word " is in the dictionary and gets you " (count word) " points.")
+       :bad-letters
+       (str "you may want to read the board again...")
+       :bad-word
+       (str "Sorry, " word " isn't in our dictionary")
+       nil))))
+
+(rf/reg-sub
+ ::results
+ (fn [db _]
+   (:answers db)))
+
+(rf/reg-sub
+ ::time-up?
+ (fn [db _]
+   (:time-up? db)))

@@ -37,6 +37,8 @@
     "Y" 1
     "Z" 1}))
 
+(def game-time 3)
+
 (def default-db
   {:name "re-frame"
    :vowels vowels

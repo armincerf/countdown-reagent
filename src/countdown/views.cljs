@@ -4,16 +4,19 @@
    [reagent.core :as r]
    [countdown.events :as events]
    [countdown.routes :as routes]
+   [fork.reagent :as fork]
    [countdown.subs :as subs]
    [countdown.db :as db]
    ["/js/helpers" :refer [drawClock]]
    [clojure.string :as str]))
 
-(defn get-real-size [el]
+(defn get-real-size
+  [el]
   (let [bb (.getBoundingClientRect el)]
     [(.-width bb) (.-height bb)]))
 
-(defn canvas [{:keys [width height draw-once]}]
+(defn canvas
+  [{:keys [width height draw-once]}]
   (rf/dispatch [::events/reset-clock])
   (fn []
     (let [update-size (fn [el timer-left]
@@ -108,11 +111,12 @@
         [:button.btn.btnPrimary
          {:on-click #(rf/dispatch [::events/reset-all])}
          "Reset"])
-      (when (and board-full? (= 30 time-left))
+      (when (and board-full? (= db/game-time
+                                time-left))
         [:button.btn.btnPrimary
-         {:on-click #(rf/dispatch [::events/start-clock 30])}
+         {:on-click #(rf/dispatch [::events/start-clock db/game-time])}
          "Start"])
-      (when (< time-left 30)
+      (when (< time-left db/game-time)
         (if running?
           [:button.btn
            {:on-click #(rf/dispatch [::events/pause-clock])}
@@ -121,27 +125,73 @@
            {:on-click #(rf/dispatch [::events/start-clock])}
            "Resume"]))]]))
 
-(defn home-panel []
+(defn word-search
+  []
+  (let [name "search-term"]
+    [fork/form {:initial-values {name ""}}
+     (fn search-form
+       [{:keys [values handle-change handle-blur]}]
+       (let [value (get values name)]
+         [:div
+          [:input
+           {:name name
+            :class "input"
+            :value value
+            :on-change handle-change
+            :on-blur handle-blur}]
+          [:button.btn.btnPrimary
+           {:on-click #(rf/dispatch [::events/lookup-word value])}
+           "Check Word"]]))]))
+
+(defn answers
+  []
+  (let [answers @(rf/subscribe [::subs/results])
+        word-result @(rf/subscribe [::subs/check-word-result])
+        time-up? @(rf/subscribe [::subs/time-up?])]
+    (when time-up?
+      [:<>
+       [word-search]
+       (when word-result
+         [:p word-result])
+       [:button.btn.btnPrimary
+        {:on-click #(rf/dispatch [::events/find-answers])}
+        "Show Answers"]
+       [:div.answers
+        (for [answer answers]
+          [:p
+           {:key answer}
+           answer])]])))
+
+(defn home-panel
+  []
   [:div
    {:class "container mx-auto max-w-md flex-col justify-center"}
    [:h1 {:class "text-4xl font-semibold py-4"} "Countdown"]
    [:div
     {:class "w-full items-center"}
     [board]
-    [controls]]])
+    [controls]
+    [answers]
+    [:a {:on-click #(rf/dispatch [::events/navigate :about])}
+     "go to Home Page"]]])
 
-(defmethod routes/panels :home-panel [] [home-panel])
+(defmethod routes/panels
+  :home-panel
+  []
+  [home-panel])
 
 (defn about-panel []
   [:div
    [:h1 "This is the About Page."]
-
    [:div
-    [:a {:on-click #(rf/dispatch [::events/navigate :home])}
-     "go to Home Page"]]])
+    ]])
 
-(defmethod routes/panels :about-panel [] [about-panel])
+(defmethod routes/panels
+  :about-panel
+  []
+  [about-panel])
 
-(defn main-panel []
+(defn main-panel
+  []
   (let [active-panel (rf/subscribe [::subs/active-panel])]
     (routes/panels @active-panel)))
