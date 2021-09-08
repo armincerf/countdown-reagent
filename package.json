@@ -3,8 +3,9 @@
   "scripts": {
     "build-report": "npx shadow-cljs run shadow.cljs.build-report app target/build-report.html",
     "sass:watch": "sass src/css/styles.scss target/css/styles.css --watch",
+    "sass:release": "sass src/css/styles.scss target/css/styles.css",
     "postcss:watch": "npx tailwindcss -i ./target/css/styles.css -o resources/public/css/styles.css --watch",
-    "postcss:release": "cross-env NODE_ENV=production postcss target/css/styles.css -o ./resources/public/css/styles.css --verbose",
+    "postcss:release": "cross-env NODE_ENV=production npx tailwindcss -i ./target/css/styles.css -o resources/public/css/styles.css",
     "shadow:watch": "shadow-cljs watch app",
     "shadow:release": "shadow-cljs release app",
     "dev": "run-p -l *:watch",
