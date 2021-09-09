@@ -1,5 +1,7 @@
 /out/
 /resources/public/js/compiled/
+/resources/public/css/*
+.DS_store
 /target/
 /*-init.clj
 /*.log
