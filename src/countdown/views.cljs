@@ -16,19 +16,34 @@
     [(.-width bb) (.-height bb)]))
 
 (defn canvas
-  [{:keys [width height draw-once]}]
-  (rf/dispatch [::events/reset-clock])
-  (fn []
-    (let [update-size (fn [el timer-left]
-                        (when el
-                          (let [ctx (.getContext el "2d")]
-                            (drawClock ctx timer-left))))]
+  [{:keys [width height]}]
+  (r/create-class
+   {:component-did-mount
+    (fn []
+      (rf/dispatch [::events/reset-clock])
+      (let [el (js/document.getElementById "canvas")
+            ctx (.getContext el "2d")
+            _ (drawClock ctx db/game-time)
+            [w h] (get-real-size el)
+            scale (.-devicePixelRatio js/window)]
+        (set! (.-width (.-style el)) (str w "px"))
+        (set! (.-height (.-style el)) (str h "px"))
+        (set! (.-width el) (* w scale))
+        (set! (.-height el) (* h scale))
+        (.scale ctx scale scale)
+        (drawClock ctx db/game-time)))
+    :reagent-render
+    (fn []
+      (let [update-size (fn [el timer-left]
+                          (when el
+                            (let [ctx (.getContext el "2d")]
+                              (drawClock ctx timer-left))))]
 
-      (fn [] (let [timer-left     @(rf/subscribe [::subs/timer-left])]
-               [:canvas {:ref    #(update-size % timer-left)
-                         :id     "canvas"
-                         :width  width
-                         :height height}])))))
+        (fn [] (let [timer-left @(rf/subscribe [::subs/timer-left])]
+                 [:canvas {:ref #(update-size % timer-left)
+                           :id "canvas"
+                           :width width
+                           :height height}]))))}))
 
 (defn clock
   []
@@ -183,8 +198,7 @@
 (defn about-panel []
   [:div
    [:h1 "This is the About Page."]
-   [:div
-    ]])
+   [:div]])
 
 (defmethod routes/panels
   :about-panel

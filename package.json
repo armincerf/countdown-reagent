@@ -5,7 +5,6 @@
         "sass:watch": "sass src/css/styles.scss target/css/styles.css --watch",
         "sass:release": "sass src/css/styles.scss target/css/styles.css",
         "postcss:watch": "cross-env TAILWIND_MODE=watch postcss ./target/css/styles.css -o ./resources/public/css/styles.css --verbose -w",
-        "postcss:release": "cross-env NODE_ENV=production postcss ./target/css/styles.css -o resources/public/css/styles.css",
         "shadow:watch": "shadow-cljs watch app",
         "shadow:release": "shadow-cljs release app",
         "dev": "run-p -l *:watch",
